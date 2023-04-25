@@ -50,27 +50,29 @@ class HashingHandler(private val supervisor: IProcessSupervisor, private val has
 		while (task.isActive)
 			delay(200)
 
-		val result =
-			if (!task.isCancelled)
-				supervisor.getResultsOfTask(taskId)
-			else
-				getEmptyHashResult(taskId)
+		val result = supervisor.getResultsOfTask(taskId)
 
-		if (!task.isCancelled)
-			supervisor.updateStatusOfTask(taskId, TaskStatus.FINISHED)
+		supervisor.updateStatusOfTask(taskId, TaskStatus.FINISHED)
 
+		return result
+	}
+
+	fun retrieveFinishedTask(taskId: Long): HashResult
+	{
+		val result = supervisor.getResultsOfTask(taskId)
 		supervisor.cleanUpAfterTask(taskId)
 
 		return result
 	}
 
-	fun calculateProgresses(): List<TaskInProgress>
+	fun retrieveProgresses(): List<TaskInProgress>
 	{
 		val allTasks = supervisor.getAllTasks()
 
 		val allProgresses = mutableListOf<TaskInProgress>()
 		allTasks.forEach {
-			val progress = supervisor.calculateAndGetProgressOfTask(it.state)
+			val progress = supervisor.retrieveProgressOfTask(it.state)
+
 			allProgresses.add(
 				TaskInProgress(
 					it.taskId,
@@ -78,7 +80,8 @@ class HashingHandler(private val supervisor: IProcessSupervisor, private val has
 					it.hashTypes,
 					progress,
 					it.state.speed.toInt() / 1024 / 1024,
-					it.state.currentHash.representation
+					it.state.currentHash.representation,
+					it.status
 				              )
 			                 )
 		}

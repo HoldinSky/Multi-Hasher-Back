@@ -14,7 +14,7 @@ interface IProcessSupervisor
 	fun removeTask(taskId: Long)
 
 	fun updateStatusOfTask(taskId: Long, newStatus: TaskStatus)
-	fun calculateAndGetProgressOfTask(state: TaskState): Int
+	fun retrieveProgressOfTask(state: TaskState): Int
 
 	fun startExecutingTask(taskId: Long): Job
 	fun stopTask(taskId: Long)

@@ -27,7 +27,7 @@ class HashProcessSupervisor : IProcessSupervisor
 		process.status = newStatus
 	}
 
-	override fun calculateAndGetProgressOfTask(state: TaskState): Int
+	override fun retrieveProgressOfTask(state: TaskState): Int
 	{
 		if (state.totalBytes == 0L) return 0
 		return (state.bytesProcessed.toFloat() * 100 / state.totalBytes.toFloat()).roundToInt()

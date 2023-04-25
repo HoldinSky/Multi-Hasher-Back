@@ -1,9 +1,9 @@
 package service
 
-import hashing.common.HashType
 import hashing.handler.HashingHandler
 import hashing.logic.HashProcessSupervisor
 import hashing.logic.MultiHasher
+import hashing.models.HashResult
 import io.vertx.core.Handler
 import io.vertx.core.Vertx
 import io.vertx.core.http.HttpMethod
@@ -34,46 +34,29 @@ class CustomVertxService(private val vertx: Vertx)
 			val hashResult = hashingHandler.hashFiles(rc)
 
 			rc.response().putHeader("Content-Type", "application/json")
-			rc.json(
-				mapOf(
-					"resId" to hashResult.resultId,
-					"hasError" to hashResult.hasError,
-					"size" to hashResult.size,
-					"results" to mapOf(
-						"pathToContent" to hashResult.path,
-						"hashTypes" to hashResult.hashTypes,
-						"hashes" to hashResult.hashes,
-						"error" to hashResult.error,
-					                  )
-				     )
-			       )
+			generateHashResultsJSON(rc, hashResult)
 		}
 	}
 
 	private fun getProgressHandler(): Handler<RoutingContext> = Handler { rc ->
 		rc.response().putHeader("Content-Type", "application/json")
 		rc.json(
-			hashingHandler.calculateProgresses()
+			hashingHandler.retrieveProgresses()
 		       )
+	}
+
+	private fun getFinishedHandler(): Handler<RoutingContext> = Handler { rc ->
+		val hashResult = hashingHandler.retrieveFinishedTask(rc.pathParam("taskId").toLong())
+
+		rc.response().putHeader("Content-Type", "application/json")
+		generateHashResultsJSON(rc, hashResult)
 	}
 
 	private fun getStoppingHandler(): Handler<RoutingContext> = Handler { rc ->
 		val hashResult = hashingHandler.stopTaskById(rc.pathParam("taskId").toLong())
 
 		rc.response().putHeader("Content-Type", "application/json")
-		rc.json(
-			mapOf(
-				"resId" to hashResult.resultId,
-				"hasError" to hashResult.hasError,
-				"size" to hashResult.size,
-				"results" to mapOf(
-					"pathToContent" to hashResult.path,
-					"hashTypes" to hashResult.hashTypes,
-					"hashes" to emptyMap<HashType, String>(),
-					"error" to hashResult.error,
-				                  )
-			     )
-		       )
+		generateHashResultsJSON(rc, hashResult)
 	}
 
 
@@ -87,15 +70,35 @@ class CustomVertxService(private val vertx: Vertx)
 			val hashingHandler = cvs.getHashingHandler()
 			val stoppingHandler = cvs.getStoppingHandler()
 			val progressHandler = cvs.getProgressHandler()
+			val finishedTaskHandler = cvs.getFinishedHandler()
 
 			router.route().handler(BodyHandler.create())
 			router.route("/*").handler(customCORSHandler)
 
 			router.route("/hashing").handler(hashingHandler)
 			router.route("/hashing/stop/:taskId").handler(stoppingHandler)
+			router.route("/hashing/task/:taskId").method(HttpMethod.GET).handler(finishedTaskHandler)
 			router.route("/hashing/progress").method(HttpMethod.GET).handler(progressHandler)
 
 			return router
 		}
+	}
+
+	private fun generateHashResultsJSON(rc: RoutingContext, hashResult: HashResult): RoutingContext
+	{
+		rc.json(
+			mapOf(
+				"resId" to hashResult.resultId,
+				"hasError" to hashResult.hasError,
+				"size" to hashResult.size,
+				"results" to mapOf(
+					"pathToContent" to hashResult.path,
+					"hashTypes" to hashResult.hashTypes,
+					"hashes" to hashResult.hashes,
+					"error" to hashResult.error,
+				                  )
+			     )
+		       )
+		return rc
 	}
 }
