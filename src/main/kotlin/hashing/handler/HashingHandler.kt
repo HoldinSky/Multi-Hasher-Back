@@ -1,5 +1,6 @@
 package hashing.handler
 
+import hashing.common.HashRequestProps
 import hashing.common.HashType
 import hashing.common.TaskStatus
 import hashing.common.filesInDirectory
@@ -7,6 +8,7 @@ import hashing.logic.IHasher
 import hashing.logic.IProcessSupervisor
 import hashing.logic.SizeCalculator
 import hashing.models.*
+import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.RoutingContext
 import io.vertx.kotlin.core.json.get
 import kotlinx.coroutines.delay
@@ -22,39 +24,44 @@ class HashingHandler(private val supervisor: IProcessSupervisor, private val has
 	{
 		val body = rc.body().asJsonObject()
 
-		val taskId: Long = body["taskId"]
-		val path: String = body["fullPath"]
-		val stringTypes: String = body["hashTypes"]
+		val props = parseRequestProperties(body)
+		val request = HashRequest(props)
 
-		val split = stringTypes.split(",")
-		val hashTypes = mutableListOf<HashType>()
-		split.forEach { hashTypes.add(HashType.valueOf(it)) }
-
-		val hashId = (Math.random() * 1_000_000).toLong()
-		val request = HashRequest(hashId, path, hashTypes)
-
-		val state = TaskState(0, 0, 0, HashType.NONE, hashTypes.size.toByte())
+		val state = getInitialState(props.hashTypes.size.toByte())
 		supervisor.addNewTask(
 			HashTask(
-				taskId,
-				hashId,
-				path,
-				hashTypes.joinToString(", ") { it.representation },
+				props,
 				TaskStatus.PLANNED,
-				state
+				state,
 			        ) { startHashingTask(request, state) })
 
-		val task = supervisor.startExecutingTask(taskId)
+		val task = supervisor.startExecutingTask(props.taskId)
 
-		// TODO (questionable place, on .join() refuses to cancel!)
 		while (task.isActive)
 			delay(200)
 
-		val result = supervisor.getResultsOfTask(taskId)
+		val result = supervisor.getResultsOfTask(props.taskId)
 
-		supervisor.updateStatusOfTask(taskId, TaskStatus.FINISHED)
+		supervisor.updateStatusOfTask(props.taskId, TaskStatus.FINISHED)
 
 		return result
+	}
+
+	private fun parseRequestProperties(body: JsonObject): HashRequestProps =
+		HashRequestProps(
+			body["taskId"],
+			(Math.random() * 1_000_000).toLong(),
+			body["fullPath"],
+			parseHashTypesFromJSON(body["hashTypes"])
+		                )
+
+	private fun parseHashTypesFromJSON(typesInString: String): List<HashType>
+	{
+		val split = typesInString.split(",")
+		val hashTypes = mutableListOf<HashType>()
+		split.forEach { hashTypes.add(HashType.valueOf(it)) }
+
+		return hashTypes
 	}
 
 	fun retrieveFinishedTask(taskId: Long): HashResult
@@ -92,7 +99,7 @@ class HashingHandler(private val supervisor: IProcessSupervisor, private val has
 	fun stopTaskById(taskId: Long): HashResult
 	{
 		val info = supervisor.getInfoAboutTask(taskId)
-		val hashResult = HashResult(info.resId, true, 0L, info.path, info.hashTypes, emptyMap(), "Manual stop")
+		val hashResult = HashResult(info.hashId, true, 0L, info.path, info.hashTypes, emptyMap(), "Manual stop")
 
 		supervisor.stopTask(taskId)
 		supervisor.cleanUpAfterTask(taskId)

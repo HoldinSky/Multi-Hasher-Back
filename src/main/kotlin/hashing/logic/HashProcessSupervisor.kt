@@ -51,7 +51,7 @@ class HashProcessSupervisor : IProcessSupervisor
 
 	override fun getInfoAboutTask(taskId: Long): HashTask = currentTasks[taskId] ?: EMPTY_TASK
 
-	override fun getResultsOfTask(taskId: Long): HashResult = results[taskId] ?: getEmptyHashResult(currentTasks[taskId]!!.resId)
+	override fun getResultsOfTask(taskId: Long): HashResult = results[taskId] ?: getEmptyHashResult(currentTasks[taskId]!!.hashId)
 
 	override fun removeTask(taskId: Long)
 	{
