@@ -1,10 +1,18 @@
 package hashing.logic
 
-import hashing.common.TaskStatus
-import hashing.models.*
+import hashing.models.task.TaskStatus
+import hashing.models.result.HashResult
+import hashing.models.result.getEmptyHashResult
+import hashing.models.task.EMPTY_TASK
+import hashing.models.task.HashTask
+import hashing.models.task.TaskState
 import kotlinx.coroutines.*
 import java.lang.IllegalArgumentException
+import java.time.Duration
+import java.time.LocalDateTime
+import kotlin.math.max
 import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 
 class HashProcessSupervisor : IProcessSupervisor
 {
@@ -14,7 +22,14 @@ class HashProcessSupervisor : IProcessSupervisor
 
 	override fun getTask(taskId: Long): HashTask = currentTasks[taskId] ?: EMPTY_TASK
 
-	override fun getAllTasks(): List<HashTask> = currentTasks.values.toList()
+	override fun getAllTasks(): List<HashTask> {
+		val now = LocalDateTime.now()
+		currentTasks.values.forEach {
+			it.state.speed = calculateSpeed(it.state.bytesProcessed, Duration.between(it.state.startTime, now))
+		}
+
+		return currentTasks.values.toList()
+	}
 
 	override fun addNewTask(task: HashTask)
 	{
@@ -75,4 +90,9 @@ class HashProcessSupervisor : IProcessSupervisor
 		removeTask(taskId)
 	}
 
+	private fun calculateSpeed(processedBytes: Long, elapsed: Duration): Long
+	{
+		val elapsedMillis = max(1, elapsed.toMillis())
+		return (processedBytes * 1000.0 / elapsedMillis).roundToLong()
+	}
 }

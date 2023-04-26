@@ -1,4 +1,4 @@
-package hashing.common
+package hashing.models.task
 
 enum class TaskStatus
 {

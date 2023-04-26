@@ -1,13 +1,12 @@
 package hashing.logic
 
-import hashing.models.TaskState
+import hashing.models.task.TaskState
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.channels.produce
 import java.io.File
 import java.io.FileInputStream
 import java.security.MessageDigest
-import java.time.Duration
-import java.time.LocalDateTime
-import kotlin.math.max
-import kotlin.math.roundToLong
 
 
 internal fun checkSum(input: String, messageDigest: MessageDigest): String
@@ -27,7 +26,49 @@ internal fun checkSum(input: String, messageDigest: MessageDigest): String
 	return sb.toString()
 }
 
-internal fun checkSum(file: File, messageDigest: MessageDigest, taskState: TaskState, startTime: LocalDateTime): String
+@OptIn(ExperimentalCoroutinesApi::class, DelicateCoroutinesApi::class)
+internal suspend fun checkSumAsync(
+	file: File,
+	messageDigest: MessageDigest,
+	taskState: TaskState,
+                                  ): String
+{
+
+	val fis = withContext(Dispatchers.IO) {
+		FileInputStream(file)
+	}
+
+	val byteArray = ByteArray(2048)
+	var bytesCount: Int
+
+	val blocks = GlobalScope.produce(Dispatchers.IO, capacity = 200) {
+		while (fis.read(byteArray).also { bytesCount = it } != -1)
+			send(Pair(byteArray.copyOf(), bytesCount))
+
+		fis.close()
+	}
+
+	runBlocking {
+		blocks.consumeEach { (array, count) ->
+			messageDigest.update(array, 0, count)
+			taskState.bytesProcessed += count
+		}
+	}
+
+	val bytes: ByteArray = messageDigest.digest()
+
+	val sb = StringBuilder()
+
+	for (i in bytes.indices)
+		sb.append(
+			((bytes[i].toInt() and 0xff) + 0x100).toString(16)
+				.substring(1)
+		         )
+
+	return sb.toString()
+}
+
+internal fun checkSum(file: File, messageDigest: MessageDigest, taskState: TaskState): String
 {
 	val fis = FileInputStream(file)
 
@@ -37,8 +78,7 @@ internal fun checkSum(file: File, messageDigest: MessageDigest, taskState: TaskS
 	while (fis.read(byteArray).also { bytesCount = it } != -1)
 	{
 		messageDigest.update(byteArray, 0, bytesCount)
-		taskState.bytesProcessed += bytesCount.toLong()
-		taskState.speed = calculateSpeed(taskState.bytesProcessed, Duration.between(startTime, LocalDateTime.now()))
+		taskState.bytesProcessed += bytesCount
 	}
 
 	fis.close()
@@ -56,8 +96,14 @@ internal fun checkSum(file: File, messageDigest: MessageDigest, taskState: TaskS
 	return sb.toString()
 }
 
-internal fun checkSum(files: List<File>, messageDigest: MessageDigest, taskState: TaskState, startTime: LocalDateTime): String {
-	for (file in files) {
+internal fun checkSum(
+	files: List<File>,
+	messageDigest: MessageDigest,
+	taskState: TaskState,
+                     ): String
+{
+	for (file in files)
+	{
 		val fis = FileInputStream(file)
 
 		val byteArray = ByteArray(1024)
@@ -67,7 +113,6 @@ internal fun checkSum(files: List<File>, messageDigest: MessageDigest, taskState
 		{
 			messageDigest.update(byteArray, 0, bytesCount)
 			taskState.bytesProcessed += bytesCount.toLong()
-			taskState.speed = calculateSpeed(taskState.bytesProcessed, Duration.between(startTime, LocalDateTime.now()))
 		}
 
 		fis.close()
@@ -84,9 +129,4 @@ internal fun checkSum(files: List<File>, messageDigest: MessageDigest, taskState
 		         )
 
 	return sb.toString()
-}
-
-private fun calculateSpeed(processedBytes: Long, elapsed: Duration): Long {
-	val elapsedMillis = max(1, elapsed.toMillis())
-	return (processedBytes * 1000.0 / elapsedMillis).roundToLong()
 }

@@ -1,6 +1,5 @@
-package hashing.models
+package hashing.models.request
 
-import hashing.common.HashRequestProps
 import hashing.common.HashType
 
 data class HashRequest(

@@ -1,6 +1,4 @@
-package hashing.models
-
-import hashing.common.TaskStatus
+package hashing.models.task
 
 
 data class TaskInProgress(
@@ -9,6 +7,5 @@ data class TaskInProgress(
 	val hashTypes: String,
 	val progress: Int,
 	val speed: Int,
-	val currentHash: String,
 	val status: TaskStatus
                          )

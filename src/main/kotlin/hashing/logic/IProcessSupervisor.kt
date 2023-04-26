@@ -1,9 +1,9 @@
 package hashing.logic
 
-import hashing.common.TaskStatus
-import hashing.models.HashTask
-import hashing.models.HashResult
-import hashing.models.TaskState
+import hashing.models.task.TaskStatus
+import hashing.models.task.HashTask
+import hashing.models.result.HashResult
+import hashing.models.task.TaskState
 import kotlinx.coroutines.Job
 
 interface IProcessSupervisor

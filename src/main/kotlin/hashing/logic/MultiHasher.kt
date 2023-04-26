@@ -2,12 +2,12 @@ package hashing.logic
 
 import hashing.common.HashType
 import hashing.common.filesInDirectory
-import hashing.models.TaskState
+import hashing.models.task.TaskState
+import kotlinx.coroutines.runBlocking
 
 import java.io.File
 import java.net.URI
 import java.security.MessageDigest
-import java.time.LocalDateTime
 
 
 class MultiHasher : IHasher
@@ -17,17 +17,17 @@ class MultiHasher : IHasher
 		return checkSum(input, digest)
 	}
 
-	override fun calculateHashOfFile(file: File, type: HashType, taskState: TaskState, startTime: LocalDateTime): String
+	override fun calculateHashOfFile(file: File, type: HashType, taskState: TaskState): String
 	{
 		val digest = MessageDigest.getInstance(type.representation)
-		return checkSum(file, digest, taskState, startTime)
+		return runBlocking { checkSumAsync(file, digest, taskState) }
 	}
 
-	override fun calculateHashOfFiles(files: List<File>, baseDirURI: URI, type: HashType, taskState: TaskState, startTime: LocalDateTime): Map<String, String> {
+	override fun calculateHashOfFiles(files: List<File>, baseDirURI: URI, type: HashType, taskState: TaskState): Map<String, String> {
 		val hashes = mutableMapOf<String, String>()
 
 		for (file in files) {
-			val hash = calculateHashOfFile(file, type, taskState, startTime)
+			val hash = calculateHashOfFile(file, type, taskState)
 			hashes[file.name] = hash
 		}
 
@@ -39,6 +39,6 @@ class MultiHasher : IHasher
 		val digest = MessageDigest.getInstance(type.representation)
 		val files = filesInDirectory(directory)
 
-		return checkSum(files, digest, taskState, LocalDateTime.now())
+		return checkSum(files, digest, taskState)
 	}
 }

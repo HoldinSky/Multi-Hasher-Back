@@ -1,4 +1,4 @@
-package hashing.models
+package hashing.models.result
 
 import hashing.common.HashType
 

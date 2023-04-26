@@ -1,26 +1,28 @@
 package hashing.handler
 
-import hashing.common.HashRequestProps
+import hashing.models.request.HashRequestProps
 import hashing.common.HashType
-import hashing.common.TaskStatus
 import hashing.common.filesInDirectory
 import hashing.logic.IHasher
 import hashing.logic.IProcessSupervisor
 import hashing.logic.SizeCalculator
-import hashing.models.*
+import hashing.models.request.HashRequest
+import hashing.models.request.SingleHashRequest
+import hashing.models.result.HashResult
+import hashing.models.result.getErrorResult
+import hashing.models.task.*
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.RoutingContext
 import io.vertx.kotlin.core.json.get
 import kotlinx.coroutines.delay
 import java.io.File
-import java.time.LocalDateTime
 
 
 class HashingHandler(private val supervisor: IProcessSupervisor, private val hasher: IHasher)
 {
 	private val sizeCalculator = SizeCalculator()
 
-	suspend fun hashFiles(rc: RoutingContext): HashResult
+	suspend fun hashFiles(rc: RoutingContext)
 	{
 		val body = rc.body().asJsonObject()
 
@@ -40,11 +42,30 @@ class HashingHandler(private val supervisor: IProcessSupervisor, private val has
 		while (task.isActive)
 			delay(200)
 
-		val result = supervisor.getResultsOfTask(props.taskId)
-
 		supervisor.updateStatusOfTask(props.taskId, TaskStatus.FINISHED)
+	}
 
-		return result
+	suspend fun hashFilesAsync(rc: RoutingContext) {
+		val body = rc.body().asJsonObject()
+		val props = parseRequestProperties(body)
+
+		val requests = mutableListOf<SingleHashRequest>()
+		props.hashTypes.forEach {
+			requests.add(SingleHashRequest(props.hashId, props.contentPath, it))
+		}
+
+		requests.forEach {
+			val state = getInitialState(props.hashTypes.size.toByte())
+			supervisor.addNewTask(
+				HashTask(
+					props,
+					TaskStatus.PLANNED,
+					state,
+				        ) { startSingleHashingTask(it, state) })
+
+			val task = supervisor.startExecutingTask(props.taskId)
+		}
+
 	}
 
 	private fun parseRequestProperties(body: JsonObject): HashRequestProps =
@@ -87,7 +108,6 @@ class HashingHandler(private val supervisor: IProcessSupervisor, private val has
 					it.hashTypes,
 					progress,
 					it.state.speed.toInt() / 1024 / 1024,
-					it.state.currentHash.representation,
 					it.status
 				              )
 			                 )
@@ -107,6 +127,43 @@ class HashingHandler(private val supervisor: IProcessSupervisor, private val has
 		return hashResult
 	}
 
+	private fun startSingleHashingTask(req: SingleHashRequest, state: TaskState): HashResult
+	{
+		val file = File(req.path)
+		if (!file.exists())
+			return getErrorResult(req.hashId, req.path, listOf(req.hashType), "No such file or directory")
+
+
+		state.totalBytes =
+			if (file.isFile)
+				sizeCalculator.calculateSizeForFile(file)
+			else
+				sizeCalculator.calculateSizeForDirectory(file)
+
+		val directoryTree =
+			if (!file.isFile)
+				filesInDirectory(file)
+			else
+				null
+
+		val hashes =
+			if (file.isFile)
+					mapOf(file.name to hasher.calculateHashOfFile(file, req.hashType, state))
+				else
+					hasher.calculateHashOfFiles(directoryTree!!, file.toURI(), req.hashType, state)
+
+
+		return HashResult(
+			req.hashId,
+			false,
+			state.totalBytes / 1024 / 1024,
+			req.path,
+			req.hashType.representation,
+			mapOf(req.hashType to hashes),
+			null
+		                 )
+	}
+
 	private fun startHashingTask(req: HashRequest, state: TaskState): HashResult
 	{
 		val hashTypesInString = req.hashTypes.joinToString(", ") { it.representation }
@@ -123,16 +180,20 @@ class HashingHandler(private val supervisor: IProcessSupervisor, private val has
 				sizeCalculator.calculateSizeForDirectory(file)
 
 		state.totalBytes = sizeInBytes * state.numberOfHashTypes
-		val startTime = LocalDateTime.now()
+
+		val directoryTree =
+			if (!file.isFile)
+				filesInDirectory(file)
+			else
+				null
 
 		for (type in req.hashTypes)
 		{
-			state.currentHash = type
 			hashes[type] =
 				if (file.isFile)
-					mapOf(file.name to hasher.calculateHashOfFile(file, type, state, startTime))
+					mapOf(file.name to hasher.calculateHashOfFile(file, type, state))
 				else
-					hasher.calculateHashOfFiles(filesInDirectory(file), file.toURI(), type, state, startTime)
+					hasher.calculateHashOfFiles(directoryTree!!, file.toURI(), type, state)
 		}
 
 		return HashResult(

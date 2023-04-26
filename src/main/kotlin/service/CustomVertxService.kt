@@ -3,7 +3,7 @@ package service
 import hashing.handler.HashingHandler
 import hashing.logic.HashProcessSupervisor
 import hashing.logic.MultiHasher
-import hashing.models.HashResult
+import hashing.models.result.HashResult
 import io.vertx.core.Handler
 import io.vertx.core.Vertx
 import io.vertx.core.http.HttpMethod
@@ -11,6 +11,7 @@ import io.vertx.ext.web.Router
 import io.vertx.ext.web.RoutingContext
 import io.vertx.ext.web.handler.BodyHandler
 import io.vertx.ext.web.handler.CorsHandler
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -29,12 +30,17 @@ class CustomVertxService(private val vertx: Vertx)
 	}
 
 
+	@OptIn(DelicateCoroutinesApi::class)
 	private fun getHashingHandler(): Handler<RoutingContext> = Handler { rc ->
 		GlobalScope.launch(Dispatchers.IO) {
-			val hashResult = hashingHandler.hashFiles(rc)
+			hashingHandler.hashFiles(rc)
 
 			rc.response().putHeader("Content-Type", "application/json")
-			generateHashResultsJSON(rc, hashResult)
+			rc.json(
+				mapOf(
+					"status" to "Successfully started",
+				     )
+			       )
 		}
 	}
 

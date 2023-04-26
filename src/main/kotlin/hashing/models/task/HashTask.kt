@@ -1,8 +1,9 @@
-package hashing.models
+package hashing.models.task
 
-import hashing.common.HashRequestProps
-import hashing.common.HashType
-import hashing.common.TaskStatus
+import hashing.models.result.HashResult
+import hashing.models.result.getEmptyHashResult
+import hashing.models.request.HashRequestProps
+import java.time.LocalDateTime
 
 class HashTask(
 	val taskId: Long,
@@ -24,4 +25,4 @@ class HashTask(
 
 }
 
-val EMPTY_TASK = HashTask(0, 0, "", "", TaskStatus.UNDEFINED, TaskState(0, 0, 0, HashType.NONE, 0)) { getEmptyHashResult(0) }
+val EMPTY_TASK = HashTask(0, 0, "", "", TaskStatus.UNDEFINED, TaskState(0, 0, 0, LocalDateTime.now(), 0)) { getEmptyHashResult(0) }
