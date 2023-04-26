@@ -1,8 +1,8 @@
 package service
 
 import hashing.handler.HashingHandler
-import hashing.logic.HashProcessSupervisor
-import hashing.logic.MultiHasher
+import hashing.logic.hashing.HashProcessSupervisor
+import hashing.logic.hashing.MultiHasher
 import hashing.models.result.HashResult
 import io.vertx.core.Handler
 import io.vertx.core.Vertx

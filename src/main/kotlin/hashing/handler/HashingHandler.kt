@@ -3,18 +3,17 @@ package hashing.handler
 import hashing.models.request.HashRequestProps
 import hashing.common.HashType
 import hashing.common.filesInDirectory
-import hashing.logic.IHasher
-import hashing.logic.IProcessSupervisor
+import hashing.logic.hashing.IHasher
+import hashing.logic.hashing.IProcessSupervisor
 import hashing.logic.SizeCalculator
 import hashing.models.request.HashRequest
-import hashing.models.request.SingleHashRequest
 import hashing.models.result.HashResult
 import hashing.models.result.getErrorResult
 import hashing.models.task.*
 import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.RoutingContext
 import io.vertx.kotlin.core.json.get
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.*
 import java.io.File
 
 
@@ -45,27 +44,39 @@ class HashingHandler(private val supervisor: IProcessSupervisor, private val has
 		supervisor.updateStatusOfTask(props.taskId, TaskStatus.FINISHED)
 	}
 
-	suspend fun hashFilesAsync(rc: RoutingContext) {
-		val body = rc.body().asJsonObject()
-		val props = parseRequestProperties(body)
+	private fun startHashingTask(req: HashRequest, state: TaskState): HashResult
+	{
+		val hashTypesInString = req.hashTypes.joinToString(", ") { it.representation }
+		var hashes: Map<HashType, Map<String, String>>
 
-		val requests = mutableListOf<SingleHashRequest>()
-		props.hashTypes.forEach {
-			requests.add(SingleHashRequest(props.hashId, props.contentPath, it))
+		val file = File(req.path)
+		if (!file.exists())
+			return getErrorResult(req.hashId, req.path, req.hashTypes, "No such file or directory")
+
+		state.totalBytes =
+			if (file.isFile)
+				sizeCalculator.calculateSizeForFile(file)
+			else
+				sizeCalculator.calculateSizeForDirectory(file)
+
+		runBlocking {
+			hashes =
+				if (file.isFile)
+					hasher.calculateHashOfFile(file, req.hashTypes, state)
+						.mapTo(mutableListOf()) { it.key to mapOf(file.name to it.value) }.toMap()
+				else
+					hasher.calculateHashOfFiles(filesInDirectory(file), req.hashTypes, state)
 		}
 
-		requests.forEach {
-			val state = getInitialState(props.hashTypes.size.toByte())
-			supervisor.addNewTask(
-				HashTask(
-					props,
-					TaskStatus.PLANNED,
-					state,
-				        ) { startSingleHashingTask(it, state) })
-
-			val task = supervisor.startExecutingTask(props.taskId)
-		}
-
+		return HashResult(
+			req.hashId,
+			false,
+			state.totalBytes / 1024 / 1024,
+			req.path,
+			hashTypesInString,
+			hashes,
+			null
+		                 )
 	}
 
 	private fun parseRequestProperties(body: JsonObject): HashRequestProps =
@@ -99,7 +110,7 @@ class HashingHandler(private val supervisor: IProcessSupervisor, private val has
 
 		val allProgresses = mutableListOf<TaskInProgress>()
 		allTasks.forEach {
-			val progress = supervisor.retrieveProgressOfTask(it.state)
+			val progress = supervisor.calculateProgressOfTask(it.state)
 
 			allProgresses.add(
 				TaskInProgress(
@@ -125,85 +136,5 @@ class HashingHandler(private val supervisor: IProcessSupervisor, private val has
 		supervisor.cleanUpAfterTask(taskId)
 
 		return hashResult
-	}
-
-	private fun startSingleHashingTask(req: SingleHashRequest, state: TaskState): HashResult
-	{
-		val file = File(req.path)
-		if (!file.exists())
-			return getErrorResult(req.hashId, req.path, listOf(req.hashType), "No such file or directory")
-
-
-		state.totalBytes =
-			if (file.isFile)
-				sizeCalculator.calculateSizeForFile(file)
-			else
-				sizeCalculator.calculateSizeForDirectory(file)
-
-		val directoryTree =
-			if (!file.isFile)
-				filesInDirectory(file)
-			else
-				null
-
-		val hashes =
-			if (file.isFile)
-					mapOf(file.name to hasher.calculateHashOfFile(file, req.hashType, state))
-				else
-					hasher.calculateHashOfFiles(directoryTree!!, file.toURI(), req.hashType, state)
-
-
-		return HashResult(
-			req.hashId,
-			false,
-			state.totalBytes / 1024 / 1024,
-			req.path,
-			req.hashType.representation,
-			mapOf(req.hashType to hashes),
-			null
-		                 )
-	}
-
-	private fun startHashingTask(req: HashRequest, state: TaskState): HashResult
-	{
-		val hashTypesInString = req.hashTypes.joinToString(", ") { it.representation }
-		val hashes = mutableMapOf<HashType, Map<String, String>>()
-
-		val file = File(req.path)
-		if (!file.exists())
-			return getErrorResult(req.hashId, req.path, req.hashTypes, "No such file or directory")
-
-		val sizeInBytes =
-			if (file.isFile)
-				sizeCalculator.calculateSizeForFile(file)
-			else
-				sizeCalculator.calculateSizeForDirectory(file)
-
-		state.totalBytes = sizeInBytes * state.numberOfHashTypes
-
-		val directoryTree =
-			if (!file.isFile)
-				filesInDirectory(file)
-			else
-				null
-
-		for (type in req.hashTypes)
-		{
-			hashes[type] =
-				if (file.isFile)
-					mapOf(file.name to hasher.calculateHashOfFile(file, type, state))
-				else
-					hasher.calculateHashOfFiles(directoryTree!!, file.toURI(), type, state)
-		}
-
-		return HashResult(
-			req.hashId,
-			false,
-			sizeInBytes / 1024 / 1024,
-			req.path,
-			hashTypesInString,
-			hashes,
-			null
-		                 )
 	}
 }

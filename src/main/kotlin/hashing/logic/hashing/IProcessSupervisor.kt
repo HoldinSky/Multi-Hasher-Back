@@ -1,4 +1,4 @@
-package hashing.logic
+package hashing.logic.hashing
 
 import hashing.models.task.TaskStatus
 import hashing.models.task.HashTask
@@ -14,7 +14,7 @@ interface IProcessSupervisor
 	fun removeTask(taskId: Long)
 
 	fun updateStatusOfTask(taskId: Long, newStatus: TaskStatus)
-	fun retrieveProgressOfTask(state: TaskState): Int
+	fun calculateProgressOfTask(state: TaskState): Int
 
 	fun startExecutingTask(taskId: Long): Job
 	fun stopTask(taskId: Long)

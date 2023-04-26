@@ -1,11 +1,8 @@
-package hashing.logic
+package hashing.logic.hashing
 
-import hashing.models.task.TaskStatus
 import hashing.models.result.HashResult
 import hashing.models.result.getEmptyHashResult
-import hashing.models.task.EMPTY_TASK
-import hashing.models.task.HashTask
-import hashing.models.task.TaskState
+import hashing.models.task.*
 import kotlinx.coroutines.*
 import java.lang.IllegalArgumentException
 import java.time.Duration
@@ -22,7 +19,8 @@ class HashProcessSupervisor : IProcessSupervisor
 
 	override fun getTask(taskId: Long): HashTask = currentTasks[taskId] ?: EMPTY_TASK
 
-	override fun getAllTasks(): List<HashTask> {
+	override fun getAllTasks(): List<HashTask>
+	{
 		val now = LocalDateTime.now()
 		currentTasks.values.forEach {
 			it.state.speed = calculateSpeed(it.state.bytesProcessed, Duration.between(it.state.startTime, now))
@@ -38,11 +36,11 @@ class HashProcessSupervisor : IProcessSupervisor
 
 	override fun updateStatusOfTask(taskId: Long, newStatus: TaskStatus)
 	{
-		val process = currentTasks[taskId] ?: return
-		process.status = newStatus
+		val task = currentTasks[taskId] ?: return
+		task.status = newStatus
 	}
 
-	override fun retrieveProgressOfTask(state: TaskState): Int
+	override fun calculateProgressOfTask(state: TaskState): Int
 	{
 		if (state.totalBytes == 0L) return 0
 		return (state.bytesProcessed.toFloat() * 100 / state.totalBytes.toFloat()).roundToInt()
@@ -66,7 +64,8 @@ class HashProcessSupervisor : IProcessSupervisor
 
 	override fun getInfoAboutTask(taskId: Long): HashTask = currentTasks[taskId] ?: EMPTY_TASK
 
-	override fun getResultsOfTask(taskId: Long): HashResult = results[taskId] ?: getEmptyHashResult(currentTasks[taskId]!!.hashId)
+	override fun getResultsOfTask(taskId: Long): HashResult =
+		results[taskId] ?: getEmptyHashResult(currentTasks[taskId]!!.hashId)
 
 	override fun removeTask(taskId: Long)
 	{
