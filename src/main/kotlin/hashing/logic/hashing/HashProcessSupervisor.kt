@@ -29,12 +29,6 @@ class HashProcessSupervisor : IProcessSupervisor
 		return currentTasks.values.toList()
 	}
 
-	private fun calculateSpeed(processedBytes: Long, elapsed: Duration): Long
-	{
-		val elapsedMillis = max(1, elapsed.toMillis())
-		return (processedBytes * 1000.0 / elapsedMillis).roundToLong()
-	}
-
 	override fun addNewTask(task: HashTask)
 	{
 		currentTasks[task.taskId] = task
@@ -93,5 +87,11 @@ class HashProcessSupervisor : IProcessSupervisor
 		removeResultsOfTask(taskId)
 		removeJobOfTask(taskId)
 		removeTask(taskId)
+	}
+
+	private fun calculateSpeed(processedBytes: Long, elapsed: Duration): Long
+	{
+		val elapsedMillis = max(1, elapsed.toMillis())
+		return (processedBytes * 1000.0 / elapsedMillis).roundToLong()
 	}
 }

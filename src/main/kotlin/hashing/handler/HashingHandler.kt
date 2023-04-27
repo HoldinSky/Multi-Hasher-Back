@@ -58,12 +58,14 @@ class HashingHandler(private val supervisor: IProcessSupervisor, private val has
 			else
 				sizeCalculator.calculateSizeForDirectory(file)
 
-		hashes =
-			if (file.isFile)
-				hasher.calculateHashOfFile(file, req.hashTypes, state)
-					.mapTo(mutableListOf()) { it.key to mapOf(file.name to it.value) }.toMap()
-			else
-				hasher.calculateHashOfFiles(filesInDirectory(file), req.hashTypes, state)
+		runBlocking {
+			hashes =
+				if (file.isFile)
+					hasher.calculateHashOfFile(file, req.hashTypes, state)
+						.mapTo(mutableListOf()) { it.key to mapOf(file.name to it.value) }.toMap()
+				else
+					hasher.calculateHashOfFiles(filesInDirectory(file), req.hashTypes, state)
+		}
 
 		return HashResult(
 			req.hashId,
