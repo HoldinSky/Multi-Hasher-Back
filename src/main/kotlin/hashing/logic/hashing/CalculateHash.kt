@@ -51,11 +51,7 @@ private fun updateDigestListWithDataFromFile(file: File, digestList: List<Messag
 
 			fis.close()
 		}.consumeEach { (array, count) ->
-			for (digest in digestList)
-				launch {
-					digest.update(array, 0, count)
-				}
-
+			digestList.stream().parallel().forEach { digest -> digest.update(array, 0, count) }
 			state.bytesProcessed += count
 		}
 	}
