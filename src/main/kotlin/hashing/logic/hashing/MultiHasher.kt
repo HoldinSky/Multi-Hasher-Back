@@ -15,7 +15,11 @@ class MultiHasher : IHasher
 		return checkSum(input, digest)
 	}
 
-	override suspend fun calculateHashOfFile(file: File, types: List<HashType>, taskState: TaskState): Map<HashType, String>
+	override suspend fun calculateHashOfFile(
+		file: File,
+		types: List<HashType>,
+		taskState: TaskState
+	                                        ): Map<HashType, String>
 	{
 		val digestList = types.map { MessageDigest.getInstance(it.representation) }.toList()
 		val hashes = checkSum(file, digestList, taskState)
@@ -27,18 +31,21 @@ class MultiHasher : IHasher
 		return map
 	}
 
-	override suspend fun calculateHashOfFiles(files: List<File>, types: List<HashType>, taskState: TaskState): Map<HashType, Map<String, String>>
+	override suspend fun calculateHashOfFiles(
+		files: List<File>,
+		types: List<HashType>,
+		taskState: TaskState
+	                                         ): Map<HashType, Map<String, String>>
 	{
 		val hashes = mutableMapOf<HashType, MutableMap<String, String>>()
 
-		types.forEach { type ->
-			val map = mutableMapOf<String, String>()
-			for (file in files)
-			{
-				calculateHashOfFile(file, listOf(type), taskState).forEach {
-					map[file.name] = it.value
-				}
-				hashes[type] = map
+		types.forEach {
+			hashes[it] = mutableMapOf()
+		}
+
+		files.forEach {file ->
+			calculateHashOfFile(file, types, taskState).forEach { (type, hash) ->
+				hashes[type]?.set(file.name, hash)
 			}
 		}
 
