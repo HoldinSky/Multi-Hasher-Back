@@ -46,8 +46,6 @@ class HashingHandler(private val supervisor: IProcessSupervisor, private val has
 
 	private fun startHashingTask(req: HashRequest, state: TaskState): HashResult
 	{
-		var hashes: Map<HashType, Map<String, String>>
-
 		val file = File(req.path)
 		if (!file.exists())
 			return getErrorResult(req.hashId, req.path, req.hashTypes, "No such file or directory")
@@ -58,14 +56,12 @@ class HashingHandler(private val supervisor: IProcessSupervisor, private val has
 			else
 				sizeCalculator.calculateSizeForDirectory(file)
 
-		runBlocking {
-			hashes =
-				if (file.isFile)
-					hasher.calculateHashOfFile(file, req.hashTypes, state)
-						.mapTo(mutableListOf()) { it.key to mapOf(file.name to it.value) }.toMap()
-				else
-					hasher.calculateHashOfFiles(filesInDirectory(file), req.hashTypes, state)
-		}
+		val hashes =
+			if (file.isFile)
+				hasher.calculateHashOfFile(file, req.hashTypes, state)
+					.mapTo(mutableListOf()) { it.key to mapOf(file.name to it.value) }.toMap()
+			else
+				hasher.calculateHashOfFiles(filesInDirectory(file), req.hashTypes, state)
 
 		return HashResult(
 			req.hashId,
