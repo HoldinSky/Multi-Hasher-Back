@@ -46,7 +46,6 @@ class HashingHandler(private val supervisor: IProcessSupervisor, private val has
 
 	private fun startHashingTask(req: HashRequest, state: TaskState): HashResult
 	{
-		val hashTypesInString = req.hashTypes.joinToString(", ") { it.representation }
 		var hashes: Map<HashType, Map<String, String>>
 
 		val file = File(req.path)
@@ -73,7 +72,7 @@ class HashingHandler(private val supervisor: IProcessSupervisor, private val has
 			false,
 			state.totalBytes / 1024 / 1024,
 			req.path,
-			hashTypesInString,
+			req.hashTypes.joinToString(", ") { it.representation },
 			hashes,
 			null
 		                 )

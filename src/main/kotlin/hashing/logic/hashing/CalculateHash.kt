@@ -26,18 +26,24 @@ internal fun checkSum(input: String, messageDigest: MessageDigest): String
 	return sb.toString()
 }
 
-@OptIn(ExperimentalCoroutinesApi::class)
-internal suspend fun checkSum(
+internal fun checkSum(
 	file: File,
 	digestList: List<MessageDigest>,
 	taskState: TaskState,
                              ): List<String>
 {
+	updateDigestListWithDataFromFile(file, digestList, taskState)
+	return parseDigestListToStringList(digestList)
+}
+
+@OptIn(ExperimentalCoroutinesApi::class, DelicateCoroutinesApi::class)
+private fun updateDigestListWithDataFromFile(file: File, digestList: List<MessageDigest>, state: TaskState)
+{
 	val byteArray = ByteArray(8192)
 	var bytesCount: Int
 
 	runBlocking {
-		produce(Dispatchers.IO, 100) {
+		GlobalScope.produce(Dispatchers.IO, 100) {
 			val fis = FileInputStream(file)
 
 			while (fis.read(byteArray).also { bytesCount = it } != -1)
@@ -45,15 +51,18 @@ internal suspend fun checkSum(
 
 			fis.close()
 		}.consumeEach { (array, count) ->
-			digestList.forEach { digest ->
-				coroutineScope {
+			for (digest in digestList)
+				launch {
 					digest.update(array, 0, count)
 				}
-			}
-			taskState.bytesProcessed += count
+
+			state.bytesProcessed += count
 		}
 	}
+}
 
+private fun parseDigestListToStringList(digestList: List<MessageDigest>): List<String>
+{
 	val bytesList = digestList.map { it.digest() }
 	val hashes = mutableListOf<String>()
 

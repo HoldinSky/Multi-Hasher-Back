@@ -15,7 +15,7 @@ class MultiHasher : IHasher
 		return checkSum(input, digest)
 	}
 
-	override suspend fun calculateHashOfFile(
+	override fun calculateHashOfFile(
 		file: File,
 		types: List<HashType>,
 		taskState: TaskState
@@ -31,7 +31,7 @@ class MultiHasher : IHasher
 		return map
 	}
 
-	override suspend fun calculateHashOfFiles(
+	override fun calculateHashOfFiles(
 		files: List<File>,
 		types: List<HashType>,
 		taskState: TaskState
