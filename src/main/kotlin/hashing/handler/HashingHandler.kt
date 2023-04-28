@@ -1,7 +1,7 @@
 package hashing.handler
 
 import hashing.models.request.HashRequestProps
-import hashing.common.HashType
+import hashing.models.HashType
 import service.filesInDirectory
 import hashing.logic.hashing.IHasher
 import hashing.logic.hashing.ITaskSupervisor
@@ -14,6 +14,7 @@ import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.RoutingContext
 import io.vertx.kotlin.core.json.get
 import kotlinx.coroutines.*
+import service.ByteArrayPool
 import java.io.File
 import kotlin.math.roundToInt
 
@@ -104,12 +105,13 @@ class HashingHandler(private val supervisor: ITaskSupervisor, private val hasher
 			else
 				sizeCalculator.calculateSizeForDirectory(file)
 
+		val arrayPool = ByteArrayPool(poolSize = 3)
 		val hashes =
 			if (file.isFile)
-				hasher.calculateHashOfFile(file, req.hashTypes, state)
+				hasher.calculateHashOfFile(file, req.hashTypes, state, arrayPool)
 					.mapTo(mutableListOf()) { it.key to mapOf(file.name to it.value) }.toMap()
 			else
-				hasher.calculateHashOfFiles(filesInDirectory(file), req.hashTypes, state)
+				hasher.calculateHashOfFiles(filesInDirectory(file), req.hashTypes, state, arrayPool)
 
 		return HashResult(
 			req.hashId,

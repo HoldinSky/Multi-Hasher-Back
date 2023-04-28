@@ -1,6 +1,6 @@
 package hashing.models.result
 
-import hashing.common.HashType
+import hashing.models.HashType
 
 data class HashResult(
 	val resultId: Long,

@@ -1,6 +1,6 @@
 package hashing.models.request
 
-import hashing.common.HashType
+import hashing.models.HashType
 
 data class HashRequestProps(
 	val taskId: Long,

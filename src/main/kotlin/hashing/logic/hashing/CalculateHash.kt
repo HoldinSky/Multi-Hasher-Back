@@ -4,6 +4,7 @@ import hashing.models.task.TaskState
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.channels.produce
+import service.ByteArrayPool
 import java.io.File
 import java.io.FileInputStream
 import java.security.MessageDigest
@@ -29,27 +30,35 @@ internal fun checkSum(
 	file: File,
 	digestList: List<MessageDigest>,
 	taskState: TaskState,
+	arrayPool: ByteArrayPool
                      ): List<String> {
-	updateDigestListWithDataFromFile(file, digestList, taskState)
+	updateDigestListWithDataFromFile(file, digestList, taskState, arrayPool)
 	return parseDigestListToStringList(digestList)
 }
 
 @OptIn(ExperimentalCoroutinesApi::class, DelicateCoroutinesApi::class)
-private fun updateDigestListWithDataFromFile(file: File, digestList: List<MessageDigest>, state: TaskState) {
-	val byteArray = ByteArray(2097152)
+private fun updateDigestListWithDataFromFile(file: File, digestList: List<MessageDigest>, state: TaskState, arrayPool: ByteArrayPool) {
 	var bytesCount: Int
 
 	runBlocking {
 		GlobalScope.produce(Dispatchers.IO) {
 			val fis = FileInputStream(file)
 
-			while (fis.read(byteArray).also { bytesCount = it } != -1)
-				send(Pair(byteArray.clone(), bytesCount))
+			while (true) {
+				val array = arrayPool.take()
+				if (fis.read(array).also { bytesCount = it } == -1) {
+					arrayPool.giveBack(array)
+					break
+				}
+				send(Pair(array, bytesCount))
+			}
 
 			fis.close()
 		}.consumeEach { (array, count) ->
 			digestList.stream().parallel().forEach { digest -> digest.update(array, 0, count) }
 			state.bytesProcessed += count
+
+			arrayPool.giveBack(array)
 		}
 	}
 }
