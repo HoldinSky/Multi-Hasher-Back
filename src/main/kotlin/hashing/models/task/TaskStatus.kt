@@ -1,6 +1,5 @@
 package hashing.models.task
 
-enum class TaskStatus
-{
+enum class TaskStatus {
 	PLANNED, IN_PROGRESS, FINISHED, INTERRUPTED, UNDEFINED
 }

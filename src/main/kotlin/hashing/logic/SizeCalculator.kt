@@ -2,10 +2,7 @@ package hashing.logic
 
 import java.io.File
 
-class SizeCalculator
-{
-	fun calculateSizeForDirectInput(input: String): Long = input.toByteArray().size.toLong()
-
+class SizeCalculator {
 	fun calculateSizeForFile(file: File): Long = file.length()
 
 	fun calculateSizeForDirectory(directory: File): Long {

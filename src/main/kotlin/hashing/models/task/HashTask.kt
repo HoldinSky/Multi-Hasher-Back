@@ -13,16 +13,15 @@ class HashTask(
 	var status: TaskStatus,
 	val state: TaskState,
 	val executeBlock: () -> HashResult
-              )
-{
-	constructor(props: HashRequestProps, status: TaskStatus, state: TaskState, executeBlock: () -> HashResult):
+              ) {
+	constructor(props: HashRequestProps, status: TaskStatus, state: TaskState, executeBlock: () -> HashResult) :
 		this(props.taskId, props.hashId, props.contentPath, props.hashTypesInString, status, state, executeBlock)
 
-	override fun toString(): String
-	{
+	override fun toString(): String {
 		return "{TaskID: '$taskId' HashId: '$hashId', File/Dir: '$path', Hash types: '$hashTypes' Status: '$status'}"
 	}
 
 }
 
-val EMPTY_TASK = HashTask(0, 0, "", "", TaskStatus.UNDEFINED, TaskState(0, 0, 0, LocalDateTime.now(), 0)) { getEmptyHashResult(0) }
+val EMPTY_TASK =
+	HashTask(0, 0, "", "", TaskStatus.UNDEFINED, TaskState(0, 0, 0, LocalDateTime.now(), 0)) { getEmptyHashResult(0) }

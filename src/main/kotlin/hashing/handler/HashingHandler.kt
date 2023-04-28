@@ -2,9 +2,9 @@ package hashing.handler
 
 import hashing.models.request.HashRequestProps
 import hashing.common.HashType
-import hashing.common.filesInDirectory
+import service.filesInDirectory
 import hashing.logic.hashing.IHasher
-import hashing.logic.hashing.IProcessSupervisor
+import hashing.logic.hashing.ITaskSupervisor
 import hashing.logic.SizeCalculator
 import hashing.models.request.HashRequest
 import hashing.models.result.HashResult
@@ -15,14 +15,13 @@ import io.vertx.ext.web.RoutingContext
 import io.vertx.kotlin.core.json.get
 import kotlinx.coroutines.*
 import java.io.File
+import kotlin.math.roundToInt
 
 
-class HashingHandler(private val supervisor: IProcessSupervisor, private val hasher: IHasher)
-{
+class HashingHandler(private val supervisor: ITaskSupervisor, private val hasher: IHasher) : IHashingHandler {
 	private val sizeCalculator = SizeCalculator()
 
-	suspend fun hashFiles(rc: RoutingContext)
-	{
+	override suspend fun hashFiles(rc: RoutingContext) {
 		val body = rc.body().asJsonObject()
 
 		val props = parseRequestProperties(body)
@@ -44,8 +43,57 @@ class HashingHandler(private val supervisor: IProcessSupervisor, private val has
 		supervisor.updateStatusOfTask(props.taskId, TaskStatus.FINISHED)
 	}
 
-	private fun startHashingTask(req: HashRequest, state: TaskState): HashResult
-	{
+	override fun getFinishedTask(taskId: Long): HashResult {
+		val result = supervisor.getResultsOfTask(taskId)
+		supervisor.cleanUpAfterTask(taskId)
+
+		return result
+	}
+
+	override fun getProgresses(): List<TaskInProgress> =
+		supervisor.getAllTasks().map {
+			TaskInProgress(
+				it.taskId,
+				it.path,
+				it.hashTypes,
+				calculateProgressOfTask(it.state),
+				it.state.speed.toInt() / 1024 / 1024,
+				it.status
+			              )
+		}
+
+	override fun stopTaskById(taskId: Long): HashResult {
+		val info = supervisor.getInfoAboutTask(taskId)
+		val hashResult = HashResult(info.hashId, true, 0L, info.path, info.hashTypes, emptyMap(), "Manual stop")
+
+		supervisor.stopTask(taskId)
+		supervisor.cleanUpAfterTask(taskId)
+
+		return hashResult
+	}
+
+	private fun calculateProgressOfTask(state: TaskState): Int {
+		if (state.totalBytes == 0L) return 0
+		return (state.bytesProcessed.toFloat() * 100 / state.totalBytes.toFloat()).roundToInt()
+	}
+
+	private fun parseRequestProperties(body: JsonObject): HashRequestProps =
+		HashRequestProps(
+			body["taskId"],
+			(Math.random() * 1_000_000).toLong(),
+			body["fullPath"],
+			parseHashTypesFromJSON(body["hashTypes"])
+		                )
+
+	private fun parseHashTypesFromJSON(typesInString: String): List<HashType> {
+		val split = typesInString.split(",")
+		val hashTypes = mutableListOf<HashType>()
+		split.forEach { hashTypes.add(HashType.valueOf(it)) }
+
+		return hashTypes
+	}
+
+	private fun startHashingTask(req: HashRequest, state: TaskState): HashResult {
 		val file = File(req.path)
 		if (!file.exists())
 			return getErrorResult(req.hashId, req.path, req.hashTypes, "No such file or directory")
@@ -72,64 +120,5 @@ class HashingHandler(private val supervisor: IProcessSupervisor, private val has
 			hashes,
 			null
 		                 )
-	}
-
-	private fun parseRequestProperties(body: JsonObject): HashRequestProps =
-		HashRequestProps(
-			body["taskId"],
-			(Math.random() * 1_000_000).toLong(),
-			body["fullPath"],
-			parseHashTypesFromJSON(body["hashTypes"])
-		                )
-
-	private fun parseHashTypesFromJSON(typesInString: String): List<HashType>
-	{
-		val split = typesInString.split(",")
-		val hashTypes = mutableListOf<HashType>()
-		split.forEach { hashTypes.add(HashType.valueOf(it)) }
-
-		return hashTypes
-	}
-
-	fun retrieveFinishedTask(taskId: Long): HashResult
-	{
-		val result = supervisor.getResultsOfTask(taskId)
-		supervisor.cleanUpAfterTask(taskId)
-
-		return result
-	}
-
-	fun retrieveProgresses(): List<TaskInProgress>
-	{
-		val allTasks = supervisor.getAllTasks()
-
-		val allProgresses = mutableListOf<TaskInProgress>()
-		allTasks.forEach {
-			val progress = supervisor.calculateProgressOfTask(it.state)
-
-			allProgresses.add(
-				TaskInProgress(
-					it.taskId,
-					it.path,
-					it.hashTypes,
-					progress,
-					it.state.speed.toInt() / 1024 / 1024,
-					it.status
-				              )
-			                 )
-		}
-
-		return allProgresses
-	}
-
-	fun stopTaskById(taskId: Long): HashResult
-	{
-		val info = supervisor.getInfoAboutTask(taskId)
-		val hashResult = HashResult(info.hashId, true, 0L, info.path, info.hashTypes, emptyMap(), "Manual stop")
-
-		supervisor.stopTask(taskId)
-		supervisor.cleanUpAfterTask(taskId)
-
-		return hashResult
 	}
 }

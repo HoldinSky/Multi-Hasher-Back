@@ -7,5 +7,5 @@ data class HashRequest(
 	val path: String,
 	val hashTypes: List<HashType>,
                       ) {
-	constructor(props: HashRequestProps): this(props.hashId, props.contentPath, props.hashTypes)
+	constructor(props: HashRequestProps) : this(props.hashId, props.contentPath, props.hashTypes)
 }

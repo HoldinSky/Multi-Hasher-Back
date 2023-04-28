@@ -1,7 +1,8 @@
 package service
 
 import hashing.handler.HashingHandler
-import hashing.logic.hashing.HashProcessSupervisor
+import hashing.handler.IHashingHandler
+import hashing.logic.hashing.HashTaskSupervisor
 import hashing.logic.hashing.MultiHasher
 import hashing.models.result.HashResult
 import io.vertx.core.Handler
@@ -16,12 +17,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 
-class CustomVertxService(private val vertx: Vertx)
-{
-	private val hashingHandler: HashingHandler = HashingHandler(HashProcessSupervisor(), MultiHasher())
+class CustomVertxService(private val vertx: Vertx) {
+	private val hashingHandler: IHashingHandler = HashingHandler(HashTaskSupervisor(), MultiHasher())
 
-	private fun getCORSHandler(): CorsHandler
-	{
+	private fun getCORSHandler(): CorsHandler {
 		return CorsHandler.create()
 			.addOrigin("http://localhost:3000")
 			.allowCredentials(true)
@@ -47,12 +46,12 @@ class CustomVertxService(private val vertx: Vertx)
 	private fun getProgressHandler(): Handler<RoutingContext> = Handler { rc ->
 		rc.response().putHeader("Content-Type", "application/json")
 		rc.json(
-			hashingHandler.retrieveProgresses()
+			hashingHandler.getProgresses()
 		       )
 	}
 
 	private fun getFinishedHandler(): Handler<RoutingContext> = Handler { rc ->
-		val hashResult = hashingHandler.retrieveFinishedTask(rc.pathParam("taskId").toLong())
+		val hashResult = hashingHandler.getFinishedTask(rc.pathParam("taskId").toLong())
 
 		rc.response().putHeader("Content-Type", "application/json")
 		generateHashResultsJSON(rc, hashResult)
@@ -66,10 +65,8 @@ class CustomVertxService(private val vertx: Vertx)
 	}
 
 
-	companion object
-	{
-		fun getGlobalRouter(cvs: CustomVertxService): Router
-		{
+	companion object {
+		fun getGlobalRouter(cvs: CustomVertxService): Router {
 			val router = Router.router(cvs.vertx)
 
 			val customCORSHandler = cvs.getCORSHandler()
@@ -90,8 +87,7 @@ class CustomVertxService(private val vertx: Vertx)
 		}
 	}
 
-	private fun generateHashResultsJSON(rc: RoutingContext, hashResult: HashResult): RoutingContext
-	{
+	private fun generateHashResultsJSON(rc: RoutingContext, hashResult: HashResult): RoutingContext {
 		rc.json(
 			mapOf(
 				"resId" to hashResult.resultId,

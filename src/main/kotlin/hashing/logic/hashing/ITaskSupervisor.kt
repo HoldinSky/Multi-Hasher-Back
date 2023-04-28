@@ -1,20 +1,17 @@
 package hashing.logic.hashing
 
-import hashing.models.task.TaskStatus
-import hashing.models.task.HashTask
 import hashing.models.result.HashResult
-import hashing.models.task.TaskState
+import hashing.models.task.HashTask
+import hashing.models.task.TaskStatus
 import kotlinx.coroutines.Job
 
-interface IProcessSupervisor
-{
+interface ITaskSupervisor {
 	fun getTask(taskId: Long): HashTask
 	fun getAllTasks(): List<HashTask>
 	fun addNewTask(task: HashTask)
 	fun removeTask(taskId: Long)
 
 	fun updateStatusOfTask(taskId: Long, newStatus: TaskStatus)
-	fun calculateProgressOfTask(state: TaskState): Int
 
 	fun startExecutingTask(taskId: Long): Job
 	fun stopTask(taskId: Long)

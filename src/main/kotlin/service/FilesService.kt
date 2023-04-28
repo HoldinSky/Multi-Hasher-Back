@@ -1,10 +1,9 @@
-package hashing.common
+package service
 
 import java.io.File
 import java.io.FileNotFoundException
 
-fun filesInDirectory(directory: File): List<File>
-{
+fun filesInDirectory(directory: File): List<File> {
 	val list = mutableListOf<File>()
 
 	directory.walk().forEach {

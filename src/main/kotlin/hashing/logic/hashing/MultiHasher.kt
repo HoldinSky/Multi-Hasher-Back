@@ -7,10 +7,8 @@ import java.io.File
 import java.security.MessageDigest
 
 
-class MultiHasher : IHasher
-{
-	override fun calculateHash(input: String, type: HashType): String
-	{
+class MultiHasher : IHasher {
+	override fun calculateHash(input: String, type: HashType): String {
 		val digest = MessageDigest.getInstance(type.representation)
 		return checkSum(input, digest)
 	}
@@ -19,8 +17,7 @@ class MultiHasher : IHasher
 		file: File,
 		types: List<HashType>,
 		taskState: TaskState
-	                                        ): Map<HashType, String>
-	{
+	                                ): Map<HashType, String> {
 		val digestList = types.map { MessageDigest.getInstance(it.representation) }.toList()
 		val hashes = checkSum(file, digestList, taskState)
 
@@ -35,15 +32,14 @@ class MultiHasher : IHasher
 		files: List<File>,
 		types: List<HashType>,
 		taskState: TaskState
-	                                         ): Map<HashType, Map<String, String>>
-	{
+	                                 ): Map<HashType, Map<String, String>> {
 		val hashes = mutableMapOf<HashType, MutableMap<String, String>>()
 
 		types.forEach {
 			hashes[it] = mutableMapOf()
 		}
 
-		files.forEach {file ->
+		files.forEach { file ->
 			calculateHashOfFile(file, types, taskState).forEach { (type, hash) ->
 				hashes[type]?.set(file.name, hash)
 			}

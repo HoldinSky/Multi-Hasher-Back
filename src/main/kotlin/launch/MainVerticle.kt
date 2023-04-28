@@ -4,11 +4,9 @@ import service.CustomVertxService
 import io.vertx.core.AbstractVerticle
 import io.vertx.core.Promise
 
-class MainVerticle : AbstractVerticle()
-{
+class MainVerticle : AbstractVerticle() {
 
-	override fun start(startPromise: Promise<Void>)
-	{
+	override fun start(startPromise: Promise<Void>) {
 		val cvs = CustomVertxService(vertx)
 		val globalRouter = CustomVertxService.getGlobalRouter(cvs)
 
