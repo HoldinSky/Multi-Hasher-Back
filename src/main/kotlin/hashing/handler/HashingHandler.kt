@@ -28,7 +28,7 @@ class HashingHandler(private val supervisor: ITaskSupervisor, private val hasher
 		val props = parseRequestProperties(body)
 		val request = HashRequest(props)
 
-		val state = getInitialState(props.hashTypes.size.toByte())
+		val state = getInitialState()
 		supervisor.addNewTask(
 			HashTask(
 				props,

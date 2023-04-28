@@ -18,9 +18,8 @@ class HashTaskSupervisor : ITaskSupervisor {
 	override fun getTask(taskId: Long): HashTask = currentTasks[taskId] ?: EMPTY_TASK
 
 	override fun getAllTasks(): List<HashTask> {
-		val now = LocalDateTime.now()
 		currentTasks.values.forEach {
-			it.state.speed = calculateSpeed(it.state.bytesProcessed, Duration.between(it.state.startTime, now))
+			it.state.speed = updateDataAndCalculateSpeed(it.state)
 		}
 
 		return currentTasks.values.toList()
@@ -72,8 +71,14 @@ class HashTaskSupervisor : ITaskSupervisor {
 		removeTask(taskId)
 	}
 
-	private fun calculateSpeed(processedBytes: Long, elapsed: Duration): Long {
-		val elapsedMillis = max(1, elapsed.toMillis())
-		return (processedBytes * 1000.0 / elapsedMillis).roundToLong()
+	private fun updateDataAndCalculateSpeed(state: TaskState): Long {
+		updateProgressState(state)
+		val elapsedMillis = max(1, state.delta.elapsed.toMillis())
+		return (state.delta.processed * 1000.0 / elapsedMillis).roundToLong()
+	}
+
+	private fun updateProgressState(state: TaskState) {
+		state.delta.processed = state.bytesProcessed - state.delta.processed
+		state.delta.elapsed = Duration.between(state.startTime, LocalDateTime.now()) - state.delta.elapsed
 	}
 }

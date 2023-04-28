@@ -19,9 +19,3 @@ class MainVerticle : AbstractVerticle() {
 			}
 	}
 }
-
-fun main() {
-	val verticle = MainVerticle()
-
-	verticle.start()
-}

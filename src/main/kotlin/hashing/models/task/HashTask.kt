@@ -24,4 +24,4 @@ class HashTask(
 }
 
 val EMPTY_TASK =
-	HashTask(0, 0, "", "", TaskStatus.UNDEFINED, TaskState(0, 0, 0, LocalDateTime.now(), 0)) { getEmptyHashResult(0) }
+	HashTask(0, 0, "", "", TaskStatus.UNDEFINED, TaskState(0, 0, 0, LocalDateTime.now())) { getEmptyHashResult(0) }
